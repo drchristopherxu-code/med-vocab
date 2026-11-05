@@ -1,0 +1,34 @@
+// 由 tools/convert_vocab.py 自动生成 —— 请勿手工编辑；重新运行脚本会覆盖本文件。
+// 词库：病理学总论 · General Pathology（25 词）
+window.registerVocab({
+  id: "genpath",
+  label: "病理学总论 · General Pathology",
+  source: "20_医学专有名词解释_双语术语表.docx",
+  words: [
+    {"word": "Anaplasia", "phonetic": "", "pos": "", "def_en": "Marked loss of differentiation in malignant cells.", "def_zh": "恶性肿瘤细胞明显丧失分化。", "name_zh": "间变", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Atrophy", "phonetic": "", "pos": "", "def_en": "Reduced tissue mass from smaller or fewer cells.", "def_zh": "细胞变小或数量减少导致组织萎缩。", "name_zh": "萎缩", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Carcinoma in situ", "phonetic": "", "pos": "", "def_en": "Epithelial malignancy without basement-membrane invasion.", "def_zh": "尚未突破基底膜的上皮恶性病变。", "name_zh": "原位癌", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Caseous necrosis", "phonetic": "", "pos": "", "def_en": "Friable cheese-like necrosis within granulomas.", "def_zh": "肉芽肿内呈干酪样、易碎的坏死。", "name_zh": "干酪样坏死", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Coagulative necrosis", "phonetic": "", "pos": "", "def_en": "Ischemic necrosis preserving basic tissue architecture.", "def_zh": "缺血后保留基本组织轮廓的坏死。", "name_zh": "凝固性坏死", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Dysplasia", "phonetic": "", "pos": "", "def_en": "Disordered epithelial growth with cytologic atypia.", "def_zh": "伴细胞异型性的上皮紊乱性生长。", "name_zh": "异型增生", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "E-cadherin", "phonetic": "", "pos": "", "def_en": "An epithelial adhesion molecule whose loss promotes invasion.", "def_zh": "其缺失促进侵袭的上皮黏附分子。", "name_zh": "E钙黏蛋白", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Fat necrosis", "phonetic": "", "pos": "", "def_en": "Adipose injury with saponification.", "def_zh": "脂肪组织损伤并发生皂化。", "name_zh": "脂肪坏死", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Fibrosis", "phonetic": "", "pos": "", "def_en": "Excessive collagen deposition forming scar tissue.", "def_zh": "胶原过度沉积形成瘢痕。", "name_zh": "纤维化", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Free radical", "phonetic": "", "pos": "", "def_en": "A reactive molecule with an unpaired electron.", "def_zh": "含未配对电子的高反应性分子。", "name_zh": "自由基", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Granulation tissue", "phonetic": "", "pos": "", "def_en": "New capillaries and connective tissue formed during repair.", "def_zh": "修复期形成的新生血管和结缔组织。", "name_zh": "肉芽组织", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "HER2", "phonetic": "", "pos": "", "def_en": "An ERBB-family receptor tyrosine kinase amplified in some cancers.", "def_zh": "部分肿瘤中扩增的ERBB家族受体酪氨酸激酶。", "name_zh": "人表皮生长因子受体2", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Hyperplasia", "phonetic": "", "pos": "", "def_en": "Increased tissue mass from increased cell number.", "def_zh": "细胞数目增多导致组织增大。", "name_zh": "增生", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Hypertrophy", "phonetic": "", "pos": "", "def_en": "Increased tissue mass from enlarged cells.", "def_zh": "细胞体积增大导致组织增大。", "name_zh": "肥大", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Invasion", "phonetic": "", "pos": "", "def_en": "Direct penetration of surrounding tissue by a neoplasm.", "def_zh": "肿瘤直接侵犯周围组织。", "name_zh": "侵袭", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Liquefactive necrosis", "phonetic": "", "pos": "", "def_en": "Enzymatic digestion producing a liquid necrotic mass.", "def_zh": "酶性消化形成液态坏死。", "name_zh": "液化性坏死", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Matrix metalloproteinase", "phonetic": "", "pos": "", "def_en": "A zinc-dependent enzyme degrading extracellular matrix.", "def_zh": "降解细胞外基质的锌依赖性酶。", "name_zh": "基质金属蛋白酶", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Metaplasia", "phonetic": "", "pos": "", "def_en": "Reversible replacement of one mature cell type by another.", "def_zh": "一种成熟细胞被另一种成熟细胞可逆替代。", "name_zh": "化生", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Metastasis", "phonetic": "", "pos": "", "def_en": "Discontinuous spread of malignant cells to distant sites.", "def_zh": "恶性细胞不连续播散至远隔部位。", "name_zh": "转移", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Necrosis", "phonetic": "", "pos": "", "def_en": "Injury-related cell death with membrane disruption and inflammation.", "def_zh": "损伤导致的细胞死亡，伴膜破裂和炎症。", "name_zh": "坏死", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Neoplasia", "phonetic": "", "pos": "", "def_en": "Clonal abnormal proliferation with uncoordinated growth.", "def_zh": "生长失控的克隆性异常增殖。", "name_zh": "肿瘤形成", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Oncogene", "phonetic": "", "pos": "", "def_en": "A gain-of-function gene driving proliferation.", "def_zh": "功能获得后驱动增殖的基因。", "name_zh": "癌基因", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "p53", "phonetic": "", "pos": "", "def_en": "A transcription factor inducing arrest, repair, or apoptosis after stress.", "def_zh": "应激后诱导停滞、修复或凋亡的转录因子。", "name_zh": "p53蛋白", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Tumor suppressor gene", "phonetic": "", "pos": "", "def_en": "A gene restraining proliferation or preserving genomic integrity.", "def_zh": "抑制增殖或维持基因组稳定的基因。", "name_zh": "抑癌基因", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""},
+    {"word": "Vascular endothelial growth factor", "phonetic": "", "pos": "", "def_en": "A major promoter of endothelial growth and angiogenesis.", "def_zh": "促进内皮生长和血管生成的关键因子。", "name_zh": "血管内皮生长因子", "example": "", "example_zh": "", "etymology": "", "tags": ["General Pathology"], "audio": ""}
+  ]
+});
