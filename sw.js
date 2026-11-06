@@ -7,7 +7,7 @@
  *
  * 更新应用后请递增 CACHE 版本号（如 med-vocab-v2），旧缓存会自动清除。
  */
-var CACHE = "med-vocab-v1";
+var CACHE = "med-vocab-v2";
 var SHELL = [
   "./",
   "./index.html",

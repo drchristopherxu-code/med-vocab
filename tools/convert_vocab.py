@@ -22,10 +22,18 @@ convert_vocab.py —— 词表转换工具
   python3 tools/convert_vocab.py --csv mywords.csv --bank-id mywords \
       --label "自定义词库" --out vocab
 
+  # 同一学科的两套词库（如核心 + "-full" 全集）合并去重成一个词库
+  python3 tools/convert_vocab.py --merge --out vocab
+
 生成：
   vocab/vocab_<id>.js   每个词库一个文件（window.registerVocab({...})）
   vocab/manifest.js     词库清单 window.VOCAB_MANIFEST（docx 模式会重建清单；
                         csv 模式在清单后追加/替换对应条目）
+
+合并去重规则（--merge）：
+  撞词判定 = 单词大小写/空格/连接号（en dash、em dash）归一后相同；
+  保留 def_en + def_zh + example + example_zh + etymology 文本量更大的那条，
+  完全平局时保留基础词库（核心版）的版本；合并后按字母序（忽略大小写）重排。
 """
 
 import argparse
@@ -34,6 +42,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import zipfile
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -338,20 +347,38 @@ def write_bank(bank, out_dir):
     return fname
 
 
-def write_manifest(banks, out_dir, replace_docx_only=False):
-    mpath = os.path.join(out_dir, "manifest.js")
+def manifest_path(out_dir):
+    return os.path.join(out_dir, "manifest.js")
+
+
+def read_manifest(out_dir):
+    """读取 manifest.js 的词库条目列表（文件不存在时返回空表）。"""
+    mpath = manifest_path(out_dir)
+    if not os.path.exists(mpath):
+        return []
     entries = []
-    if replace_docx_only and os.path.exists(mpath):
-        # 保留非 docx 来源的自定义词库条目
-        txt = open(mpath, encoding="utf-8").read()
-        for m in re.finditer(r"\{[^{}]*\}", txt):
-            blk = m.group(0)
-            try:
-                obj = json.loads(blk.replace("'", '"'))
-            except Exception:
-                continue
-            if obj.get("id"):
-                entries.append(obj)
+    for m in re.finditer(r"\{[^{}]*\}", open(mpath, encoding="utf-8").read()):
+        try:
+            obj = json.loads(m.group(0).replace("'", '"'))
+        except Exception:
+            continue
+        if obj.get("id"):
+            entries.append(obj)
+    return entries
+
+
+def write_manifest_entries(entries, out_dir):
+    lines = ["// 由 tools/convert_vocab.py 自动生成 —— 词库清单；新增词库可在此登记。",
+             "window.VOCAB_MANIFEST = ["]
+    for e in entries:
+        lines.append("  " + json.dumps(e, ensure_ascii=False) + ",")
+    lines += ["];", ""]
+    with open(manifest_path(out_dir), "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+
+def write_manifest(banks, out_dir, replace_docx_only=False):
+    entries = read_manifest(out_dir) if replace_docx_only else []
     keep = [e for e in entries if e.get("source") != banks[0]["source"]] if banks else entries
     for b in banks:
         keep = [e for e in keep if e["id"] != b["id"]] + [{
@@ -360,13 +387,96 @@ def write_manifest(banks, out_dir, replace_docx_only=False):
             "file": f"vocab/vocab_{b['id']}.js",
             "count": len(b["words"]),
         }]
-    lines = ["// 由 tools/convert_vocab.py 自动生成 —— 词库清单；新增词库可在此登记。",
-             "window.VOCAB_MANIFEST = ["]
-    for e in keep:
-        lines.append("  " + json.dumps(e, ensure_ascii=False) + ",")
-    lines += ["];", ""]
-    with open(mpath, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
+    write_manifest_entries(keep, out_dir)
+
+
+# ---------------------------------------------------------------- 合并去重
+def read_bank(path):
+    """读取已生成的 vocab_*.js，返回 (id, label, source, words)。"""
+    txt = open(path, encoding="utf-8").read()
+
+    def field(name):
+        m = re.search(rf'^\s*{name}: "(.*)",$', txt, re.M)
+        return m.group(1) if m else ""
+
+    m = re.search(r"\n\s*words: \[\n(.*?)\n\s*\],?\n", txt, re.S)
+    if not m:
+        raise ValueError(f"未找到 words 数组：{path}")
+    words = []
+    for line in m.group(1).split("\n"):
+        line = line.strip().rstrip(",")
+        if not line:
+            continue
+        if not line.startswith("{"):
+            raise ValueError(f"词条行无法解析：{path} → {line[:60]}")
+        words.append(json.loads(line))
+    return field("id"), field("label"), field("source"), words
+
+
+def norm_word(s):
+    """撞词判定用的归一化：忽略大小写、连续空白与连接号变体。"""
+    s = unicodedata.normalize("NFKD", str(s))
+    for dash in ("\u2013", "\u2014", "\u2212"):
+        s = s.replace(dash, "-")
+    return re.sub(r"\s+", " ", s.replace("\u2019", "'")).strip().lower()
+
+
+def richness(w):
+    """词条的信息量：释义、例句、词根的文本总量。"""
+    return sum(len(str(w.get(k) or "")) for k in
+               ("def_en", "def_zh", "example", "example_zh", "etymology"))
+
+
+def merge_banks(out_dir, suffix="-full"):
+    """把 <id> 与 <id><suffix> 两套词库合并去重成 <id>，删除后者并更新清单。"""
+    entries = read_manifest(out_dir)
+    by_id = {e["id"]: e for e in entries}
+    base_of_full = lambda fid: fid[: -len(suffix)]
+    bases = [e["id"] for e in entries
+             if not e["id"].endswith(suffix) and e["id"] + suffix in by_id]
+    orphans = [e["id"] for e in entries
+               if e["id"].endswith(suffix) and base_of_full(e["id"]) not in by_id]
+    if not bases:
+        print(f"没有可合并的词库对（后缀 {suffix}）；清单保持 {len(entries)} 个条目。")
+        return
+    counts = {}
+    removed_total = 0
+    for bid in bases:
+        base_e, full_e = by_id[bid], by_id[bid + suffix]
+        _, _, base_src, base_words = read_bank(os.path.join(out_dir, os.path.basename(base_e["file"])))
+        _, _, full_src, full_words = read_bank(os.path.join(out_dir, os.path.basename(full_e["file"])))
+        chosen = {}
+        for w in base_words + full_words:
+            k = norm_word(w["word"])
+            cur = chosen.get(k)
+            # 严格大于：文本量完全相同时保留基础词库（核心版）的释义
+            if cur is None or richness(w) > richness(cur):
+                chosen[k] = w
+        words = [chosen[k] for k in sorted(chosen)]
+        removed = len(base_words) + len(full_words) - len(words)
+        removed_total += removed
+        counts[bid] = len(words)
+        write_bank({"id": bid, "label": base_e["label"],
+                    "source": f"{base_src} + {full_src}（合并去重）",
+                    "words": words}, out_dir)
+        os.remove(os.path.join(out_dir, os.path.basename(full_e["file"])))
+        print(f"  ✓ {bid:8s} 核心{len(base_words):4d} + 全集{len(full_words):4d} "
+              f"→ {len(words):4d} 词（去重 {removed}）")
+
+    new_entries = []
+    for e in entries:
+        if e["id"].endswith(suffix) and base_of_full(e["id"]) in counts:
+            continue
+        if e["id"] in counts:
+            e = dict(e, count=counts[e["id"]])
+        new_entries.append(e)
+    write_manifest_entries(new_entries, out_dir)
+    total = sum(e.get("count", 0) for e in new_entries)
+    print(f"合并 {len(bases)} 对 → {len(new_entries)} 个词库 / {total} 词，"
+          f"去重 {removed_total} 条 → {manifest_path(out_dir)}")
+    if orphans:
+        print(f"提示：{len(orphans)} 个带 {suffix} 后缀的词库没有对应基础库，未做合并："
+              f"{', '.join(orphans)}")
 
 
 def main():
@@ -377,11 +487,19 @@ def main():
     ap.add_argument("--label", help="CSV 模式词库显示名")
     ap.add_argument("--id-suffix", default="", help="词库 id 后缀（如 -full，用于同一学科多套词库共存）")
     ap.add_argument("--label-suffix", default="", help="词库显示名后缀（如 ' · 全集'）")
+    ap.add_argument("--merge", action="store_true",
+                    help="把 <id> 与 <id>+后缀 两套词库合并去重成一个词库")
+    ap.add_argument("--merge-suffix", default="-full",
+                    help="合并模式下视为同一学科第二套词库的 id 后缀（默认 -full）")
     ap.add_argument("--out", default="vocab", help="输出目录（默认 vocab/）")
     args = ap.parse_args()
 
+    if args.merge:
+        merge_banks(args.out, args.merge_suffix)
+        return
+
     if not args.docx and not args.csv:
-        ap.error("需要 --docx 或 --csv 之一")
+        ap.error("需要 --docx 或 --csv 之一（或使用 --merge 合并同词库）")
 
     if args.docx:
         source = os.path.basename(args.docx)

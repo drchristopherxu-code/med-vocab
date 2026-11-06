@@ -713,32 +713,82 @@
   /* ================= 错题本存储 + 艾宾浩斯调度 ================= */
   var WB_KEY = "vocab_wrongbook_v1";
   var IV = [20, 60, 540, 1440, 2880, 8640, 20160, 43200]; // 分钟：20分/1h/9h/1天/2天/6天/14天/30天
+  /* 记录键归一化：词库合并会把同一词的大小写/连接号统一（如 ectopic pregnancy → Ectopic
+     pregnancy），若仍按原文取记录，旧错题就会找不到词条 */
+  function wbKey(word) {
+    return String(word).replace(/[–—−]/g, "-").replace(/’/g, "'")
+                        .replace(/\s+/g, " ").trim().toLowerCase();
+  }
+  function wbBlank() {
+    return { times: 0, level: 0, lastWrong: 0, nextReview: 0, lastResult: "", stem: "", disp: "" };
+  }
+  /* 两条记录并为一条：取进度更深的（level 优先，其次 times）；下次复习时间取两者更早的非零值，
+     避免合并后把还没复习的词直接跳过 */
+  function wbMergeRec(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    var deeper = ((b.level || 0) > (a.level || 0) ||
+                  ((b.level || 0) === (a.level || 0) && (b.times || 0) > (a.times || 0))) ? b : a;
+    var nexts = [a.nextReview, b.nextReview].filter(function (t) { return t > 0; });
+    return {
+      times: Math.max(a.times || 0, b.times || 0),
+      level: Math.max(a.level || 0, b.level || 0),
+      lastWrong: Math.max(a.lastWrong || 0, b.lastWrong || 0),
+      nextReview: nexts.length ? Math.min(nexts[0], nexts[1]) : 0,
+      lastResult: deeper.lastResult || "",
+      stem: deeper.stem || "",
+      disp: deeper.disp || ""
+    };
+  }
   function wbLoad() {
     try { return JSON.parse(localStorage.getItem(WB_KEY)) || {}; } catch (e) { return {}; }
   }
   function wbSave(d) {
     try { localStorage.setItem(WB_KEY, JSON.stringify(d)); } catch (e) {}
   }
+  /* 一次性迁移：把旧 "-full" 词库的记录并入基础词库，同时把记录键归一化 */
+  function wbMigrate() {
+    var d = wbLoad(), out = {}, changed = false;
+    Object.keys(d).forEach(function (bankId) {
+      var target = /-full$/.test(bankId) ? bankId.slice(0, -5) : bankId;
+      if (target !== bankId) changed = true;
+      var bucket = out[target] || (out[target] = {});
+      Object.keys(d[bankId]).forEach(function (word) {
+        var rec = d[bankId][word];
+        if (!rec || typeof rec !== "object") { changed = true; return; }
+        if (!rec.disp) { rec.disp = word; changed = true; }
+        var key = wbKey(word);
+        if (key !== word) changed = true;
+        bucket[key] = bucket[key] ? wbMergeRec(bucket[key], rec) : rec;
+        if (bucket[key] !== rec) changed = true;
+      });
+    });
+    if (changed) wbSave(out);
+    return changed;
+  }
   /* 收录（答错 / 浏览标记没记住）：times+1、level 归零 */
   function wbRecord(bankId, w) {
     if (!bankId || !w || !w.word) return;
     var d = wbLoad();
     d[bankId] = d[bankId] || {};
-    var e = d[bankId][w.word] || { times: 0, level: 0, lastWrong: 0, nextReview: 0, lastResult: "", stem: "" };
+    var key = wbKey(w.word);
+    var e = d[bankId][key] || wbBlank();
     e.times++; e.level = 0;
     e.lastWrong = Date.now();
     e.nextReview = Date.now() + IV[0] * 60000;
     e.lastResult = "again";
     e.stem = ((w.def_en || "") + "").replace(/\s+/g, " ").slice(0, 110);
-    d[bankId][w.word] = e;
+    e.disp = w.word;
+    d[bankId][key] = e;
     wbSave(d);
   }
   /* 复习评级：again/hard/good/easy。good/easy 使 level 前进；越过第 8 级则毕业 */
   function wbGrade(bankId, word, grade) {
     var d = wbLoad();
     var b = d[bankId];
-    if (!b || !b[word]) return { graduated: false, nextReview: Date.now() };
-    var e = b[word], now = Date.now();
+    var key = wbKey(word);
+    if (!b || !b[key]) return { graduated: false, nextReview: Date.now() };
+    var e = b[key], now = Date.now();
     if (grade === "again") {
       e.times++; e.level = 0;
       e.nextReview = now + IV[0] * 60000;
@@ -748,7 +798,7 @@
     } else {
       e.level += (grade === "easy" ? 2 : 1);
       if (e.level > 7) {
-        delete b[word];
+        delete b[key];
         if (!Object.keys(b).length) delete d[bankId];
         wbSave(d);
         return { graduated: true };
@@ -762,8 +812,9 @@
   function wbRemove(bankId, word) {
     if (!bankId || !word) return;
     var d = wbLoad();
-    if (d[bankId] && d[bankId][word]) {
-      delete d[bankId][word];
+    var key = wbKey(word);
+    if (d[bankId] && d[bankId][key]) {
+      delete d[bankId][key];
       if (!Object.keys(d[bankId]).length) delete d[bankId];
       wbSave(d);
     }
@@ -825,7 +876,7 @@
   }
   function wordInWb(bankId, word) {
     var d = wbLoad();
-    return !!(d[bankId] && d[bankId][word]);
+    return !!(d[bankId] && d[bankId][wbKey(word)]);
   }
 
   /* ================= 会话状态 ================= */
@@ -1036,7 +1087,7 @@
       $("expBody").hidden = !st.open;
       var body = wordExpHTML(w);
       if (S.kind === "review" && (st.graded || (st.judged && !st.correct))) {
-        var d = wbLoad(), bid = S.qbids[S.cur], e = (d[bid] || {})[w.word];
+        var d = wbLoad(), bid = S.qbids[S.cur], e = (d[bid] || {})[wbKey(w.word)];
         if (st.graded === "graduated-out") {
           body += '<div class="graduated-banner">🎓 恭喜！该词已通过全部 8 级复习，从错题本毕业。</div>';
         } else if (e) {
@@ -1098,7 +1149,8 @@
   }
   function wbLevelOf(bankId, word) {
     var d = wbLoad();
-    return (d[bankId] && d[bankId][word]) ? d[bankId][word].level : 0;
+    var e = d[bankId] && d[bankId][wbKey(word)];
+    return e ? e.level : 0;
   }
   function allDone() {
     if (!S) return false;
@@ -1210,8 +1262,15 @@
     card.classList.add("loading");
     loadAllBanks().then(function (banks) {
       card.classList.remove("loading");
-      var pool = [];
-      banks.forEach(function (b) { (b.words || []).forEach(function (w) { pool.push({ w: w, bid: b.id }); }); });
+      var pool = [], seen = {};
+      banks.forEach(function (b) {
+        (b.words || []).forEach(function (w) {
+          var k = wbKey(w.word);
+          if (seen[k]) return; // 同一术语可属于两个学科，混合抽词只保留一次
+          seen[k] = 1;
+          pool.push({ w: w, bid: b.id });
+        });
+      });
       if (!pool.length) { toast("词库为空"); return; }
       var n = Math.min(50, pool.length);
       var picked = shuffle(pool.slice()).slice(0, n);
@@ -1237,9 +1296,12 @@
       var ws = [], qbids = [];
       entries.forEach(function (e) {
         var bank = REG[e.bankId];
-        var w = bank && (bank.words || []).filter(function (x) { return x.word === e.word; })[0];
-        if (w) { ws.push(w); qbids.push(e.bankId); }
-        else wbRemove(e.bankId, e.word); // 词库已更新，词条不存在
+        var w = bank && (bank.words || []).filter(function (x) { return wbKey(x.word) === e.word; })[0];
+        if (w) {
+          ws.push(w); qbids.push(e.bankId);
+          var d = wbLoad(), rec = d[e.bankId] && d[e.bankId][e.word];
+          if (rec && rec.disp !== w.word) { rec.disp = w.word; wbSave(d); } // 写法跟随词库
+        } else wbRemove(e.bankId, e.word); // 词库已更新，词条不存在
       });
       if (!ws.length) { toast("没有可复习的单词"); renderWrongbook(); return; }
       makeSession("review", "错题复习 · " + ws.length + " 词", ws, qbids, function () {
@@ -1481,12 +1543,13 @@
       box.appendChild(head);
       words.forEach(function (word) {
         var e = d[bid][word];
+        var disp = e.disp || word;
         var isDue = e.nextReview <= now;
         var row = document.createElement("div");
         row.className = "wb-row" + (isDue ? " due" : "");
         var lw = e.lastWrong ? new Date(e.lastWrong) : null;
         row.innerHTML =
-          '<span class="wb-word" title="点击发音">' + esc(word) + "</span>" +
+          '<span class="wb-word" title="点击发音">' + esc(disp) + "</span>" +
           '<span class="wb-times">✗ ×' + e.times + "</span>" +
           '<span class="wb-lv">' + lvText(e.level) + "</span>" +
           '<span class="wb-next' + (isDue ? " due" : "") + '">' + (isDue ? '<span class="due-chip">到期</span>' : "") + fmtRel(e.nextReview) + "</span>" +
@@ -1496,7 +1559,7 @@
         spk.className = "spk sm";
         spk.title = "播放发音";
         spk.textContent = "🔊";
-        spk.addEventListener("click", function () { speak(word); });
+        spk.addEventListener("click", function () { speak(disp); });
         row.appendChild(spk);
         var rev = document.createElement("button");
         rev.className = "btn";
@@ -1606,6 +1669,7 @@
   });
 
   /* ================= 启动 ================= */
+  wbMigrate();
   syncCfgUI();
   renderHome();
 

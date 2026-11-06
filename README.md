@@ -1,12 +1,16 @@
 # 医学专有名词背诵 Vocab Trainer
 
 一个**纯前端单文件**医学英语背单词应用（HTML + CSS + 原生 JavaScript），UWorld 风格界面。
-词库共 **38 个 / 4822 个医学专有名词**（中英双语释义），来自两份词表：
+词库共 **19 个学科词库 / 4563 个词条**（去重后 4522 个唯一医学专有名词，中英双语释义），
+由两份词表按学科合并而成：
 
-| 词库组 | 来源 | 规模 |
+| 来源词表 | 规模 | 合并中的角色 |
 |---|---|---|
-| 核心精选（19 库） | 《20_医学专有名词解释_双语术语表.docx》（双语教科书式讲义 · 术语表卷） | 419 核心术语 |
-| 学科全集（19 库，id 带 `-full`） | 《医学专有名词解释_英中双语.docx》（Kimi_Agent_知识点合并版素材） | 4403 词条 · 覆盖 19 个学科 |
+| 《20_医学专有名词解释_双语术语表.docx》（双语教科书式讲义 · 术语表卷） | 419 核心术语 | 基础词库；撞词内容长度相同时保留其释义与 Title Case 写法 |
+| 《医学专有名词解释_英中双语.docx》（Kimi_Agent_知识点合并版素材） | 4403 词条 · 19 个学科 | 并入同名基础词库；释义更全时取代核心版 |
+
+两份词表重叠 259 条（其中 237 条内容完全一致），合并后共去重 259 条；
+另有 41 个词同时属于两个学科（如 apoptosis 同时在生物化学与病理学），按学科各自保留。
 
 ## 使用方法
 
@@ -57,9 +61,8 @@
 vocab-app/
 ├── index.html              # 主应用（双击运行）
 ├── vocab/
-│   ├── manifest.js         # 词库清单（window.VOCAB_MANIFEST，38 条）
-│   ├── vocab_*.js          # 19 个核心精选词库（419 词）
-│   └── vocab_*-full.js     # 19 个学科全集词库（4403 词）
+│   ├── manifest.js         # 词库清单（window.VOCAB_MANIFEST，19 条）
+│   └── vocab_*.js          # 19 个学科词库（两份来源合并去重后共 4563 词）
 ├── tools/
 │   └── convert_vocab.py    # 词表转换工具（docx 表格/段落两种排版 + CSV → vocab JS）
 └── README.md
@@ -87,22 +90,27 @@ vocab-app/
 ## 新增 / 自定义词库
 
 ```bash
-# 从 docx 术语表生成（自动识别「表格版」与「段落版」两种排版；--out vocab）
+# 1) 从 docx 术语表生成基础词库（自动识别「表格版」与「段落版」两种排版；--out vocab）
 python3 tools/convert_vocab.py --docx "/path/术语表.docx"
 
-# 同一学科第二套词库共存：加 id / 显示名后缀（如全集版）
+# 2) 同一学科的第二套词表：先加 id / 显示名后缀生成共存词库（如全集版）
 python3 tools/convert_vocab.py --docx "/path/英中双语.docx" \
     --id-suffix=-full --label-suffix=" · 全集"
+
+# 3) 把两套合并去重成一个学科词库（删除 -full 文件、更新清单）
+python3 tools/convert_vocab.py --merge --out vocab
 
 # 从 CSV/TSV 追加一个自定义词库（列名支持 word/term、def_en/英文释义、def_zh/中文解释 等）
 python3 tools/convert_vocab.py --csv mywords.csv --bank-id mywords --label "我的词库"
 ```
 
 转换后会在 `vocab/manifest.js` 自动登记（保留已有词库条目、替换同 id 条目）；刷新 `index.html` 即可看到新词库卡片。
+`--merge` 的取舍规则：撞词判定忽略大小写与连接号变体，保留释义/例句/词根文本量更大的那条，
+完全平局时保留基础词库的版本；合并后按字母序（忽略大小写）重排。改动词库后记得递增 `sw.js` 的 `CACHE` 版本号。
 
 ## 数据来源
 
-- 核心精选词库：《20_医学专有名词解释_双语术语表.docx》（USMLE Step 1 从零开始 · 双语教科书式讲义 · 2026-10 编排，419 核心术语）
-- 学科全集词库：《医学专有名词解释_英中双语.docx》（Kimi_Agent_知识点合并版 · 4403 词条 · 19 学科）
+- 基础词表：《20_医学专有名词解释_双语术语表.docx》（USMLE Step 1 从零开始 · 双语教科书式讲义 · 2026-10 编排，419 核心术语）
+- 扩充词表：《医学专有名词解释_英中双语.docx》（Kimi_Agent_知识点合并版 · 4403 词条 · 19 学科），已按学科并入基础词库
 - 知识点基础：USMLE 题库逐题提炼知识点合并；体系参照 First Aid for the USMLE Step 1 (2026, 35th ed.)、Pathoma、Robbins Basic Pathology
 - 界面风格：与《USMLE Question Bank — Timed Practice》(index.html, UWorld 风格) 同构——navy 顶栏、卡片布局、Tutor 即时判分
